@@ -267,6 +267,7 @@ from . import evolutionarytechniques
 from . import differentialevolution
 from . import simplextechniques
 from . import patternsearch
+from . import resumable_patternsearch
 from . import simulatedannealing
 from .pso import PSO
 from . import globalGA
@@ -321,3 +322,9 @@ register(AUCBanditMetaTechnique([
     differentialevolution.DifferentialEvolutionAlt(),
     globalGA.NormalGreedyMutation(crossover_rate=0.5, crossover_strength=0.2, name='GGA')
 ], name='PSO_GA_DE'))
+register(AUCBanditMetaTechnique([
+    differentialevolution.DifferentialEvolutionAlt(),
+    evolutionarytechniques.UniformGreedyMutation(),
+    evolutionarytechniques.NormalGreedyMutation(mutation_rate=0.3),
+    resumable_patternsearch.ResumablePatternSearch(),
+], name = "AUCBanditMetaTechniqueResumable"))

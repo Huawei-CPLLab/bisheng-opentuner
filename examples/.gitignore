@@ -2,3 +2,5 @@
 stats
 opentuner.log
 opentuner.db
+*.s
+*.s-*

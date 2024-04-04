@@ -98,10 +98,13 @@ class MeasurementDriver(DriverBase):
         result.collection_cost = self.lap_timer()
         self.session.flush()  # populate result.id
         log.debug(
-            'Result(id=%d, cfg=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
+            'Result(id=%d, cfg=%d, time=%.4f, cycle=%d, rate=%.2f, accuracy=%.2f,'
+            ' collection_cost=%.2f)',
             result.id,
             result.configuration.id,
             result.time,
+            result.cycle,
+            result.rate,
             result.accuracy if result.accuracy is not None else float('NaN'),
             result.collection_cost)
         self.commit()

@@ -199,15 +199,16 @@ class TuningRunMain(object):
             self.tuning_run.state = 'RUNNING'
             self.commit(force=True)
             self.search_driver.main()
-            if self.search_driver.best_result:
-                self.measurement_interface.save_final_config(
-                    self.search_driver.best_result.configuration)
             self.tuning_run.final_config = self.search_driver.best_result.configuration
             self.tuning_run.state = 'COMPLETE'
         except:
             self.tuning_run.state = 'ABORTED'
             raise
         finally:
+            log.debug("desired result id=%d, cfg=%d")
+            if self.search_driver.best_result:
+                self.measurement_interface.save_final_config(
+                    self.search_driver.best_result.configuration)
             self.tuning_run.end_date = datetime.now()
             self.commit(force=True)
             self.session.close()

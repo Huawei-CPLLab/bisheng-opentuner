@@ -26,7 +26,7 @@ argparser.add_argument('--test-limit', type=int,
                        help='stop tuning after given tests count')
 argparser.add_argument('--stop-after', type=float,
                        help='stop tuning after given seconds')
-argparser.add_argument('--parallelism', type=int, default=4,
+argparser.add_argument('--parallelism', type=int, default=1,
                        help='how many tests to support at once')
 argparser.add_argument('--pipelining', type=int, default=0,
                        help='how long a delay (in generations) before results are available')
@@ -48,7 +48,8 @@ class SearchDriver(DriverBase):
     DesiredResults
     """
 
-    def __init__(self, manipulator, extra_seeds=None, extra_criteria=None, **kwargs):
+    def __init__(self, manipulator, extra_seeds=None, extra_criteria=None,
+                 root_technique=None, best_result=None, **kwargs):
         super(SearchDriver, self).__init__(**kwargs)
         if extra_seeds is None:
             extra_seeds = []
@@ -56,6 +57,7 @@ class SearchDriver(DriverBase):
         self.wait_for_results = self.tuning_run_main.results_wait
         self.commit = self.tuning_run_main.commit
         self.extra_criteria = extra_criteria
+        self.root_technique = root_technique
 
         self.generation = 0
         self.test_count = 0
@@ -68,11 +70,12 @@ class SearchDriver(DriverBase):
                 print(t.name)
             sys.exit(0)
 
-        if self.args.generate_bandit_technique:
-            # generate a bandit
-            self.root_technique = AUCBanditMetaTechnique.generate_technique(manipulator)
-        else:
-            self.root_technique = copy.deepcopy(technique.get_root(self.args))
+        if self.root_technique is None:
+            if self.args.generate_bandit_technique:
+                # generate a bandit
+                self.root_technique = AUCBanditMetaTechnique.generate_technique(manipulator)
+            else:
+                self.root_technique = copy.deepcopy(technique.get_root(self.args))
 
         if isinstance(self.root_technique, AUCBanditMetaTechnique):
             self.session.flush()
@@ -87,7 +90,7 @@ class SearchDriver(DriverBase):
 
         self.objective.set_driver(self)
         self.pending_config_ids = set()
-        self.best_result = None
+        self.best_result = best_result
         self.new_results = []
 
         for t in self.plugins:

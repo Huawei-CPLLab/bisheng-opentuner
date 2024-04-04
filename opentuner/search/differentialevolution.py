@@ -10,8 +10,8 @@ from builtins import range
 
 from past.utils import old_div
 
-from .technique import SearchTechnique
 from .technique import register
+from .technique import ResumableSearchTechnique
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.WARNING)
@@ -28,7 +28,7 @@ class PopulationMember(object):
         self.timestamp = time.time()
 
 
-class DifferentialEvolution(SearchTechnique):
+class DifferentialEvolution(ResumableSearchTechnique):
     """
     based on http://cci.lbl.gov/cctbx_sources/scitbx/differential_evolution.py
     """

@@ -259,9 +259,11 @@ class Result(Base):
                    default='OK')
     time = Column(Float)
     accuracy = Column(Float)
+    rate = Column(Float)
     energy = Column(Float)
     size = Column(Float)
     confidence = Column(Float)
+    cycle = Column(Integer)
     # extra = Column(PickleType)
 
     # set by SearchDriver
