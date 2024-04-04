@@ -287,8 +287,8 @@ class MeasurementInterface(with_metaclass(abc.ABCMeta, object)):
         return {'time': float('inf') if killed else (t1 - t0),
                 'timeout': killed,
                 'returncode': p.returncode,
-                'stdout': stdout_result.get(),
-                'stderr': stderr_result.get()}
+                'stdout': stdout_result.get().decode(),
+                'stderr': stderr_result.get().decode()}
 
     def prefix_hook(self, session):
         pass

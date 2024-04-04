@@ -11,10 +11,10 @@ from builtins import range
 from past.utils import old_div
 
 from opentuner.search import technique
-from .technique import SearchTechnique
+from .technique import ResumableSearchTechnique
 
 
-class EvolutionaryTechnique(SearchTechnique):
+class EvolutionaryTechnique(ResumableSearchTechnique):
     def __init__(self,
                  mutation_rate=0.1,
                  crossover_rate=0.0,

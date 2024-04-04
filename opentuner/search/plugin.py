@@ -15,13 +15,13 @@ display_log = logging.getLogger(__name__ + ".DisplayPlugin")
 
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--results-log',
-                       help="file to store log of the best configuration times")
+    help="file to store log of the best configuration times")
 argparser.add_argument('--results-log-details',
-                       help="file to store log of the non-best configuration times")
+    help="file to store log of the non-best configuration times")
 argparser.add_argument('--quiet', action='store_true',
-                       help="print less information")
+    help="print less information")
 argparser.add_argument('--display-frequency', default=10, type=int,
-                       help="how often for DisplayPlugin to print")
+    help="how often for DisplayPlugin to print")
 
 
 class SearchPlugin(object):
@@ -69,7 +69,7 @@ class SearchPlugin(object):
 class DisplayPlugin(with_metaclass(abc.ABCMeta, SearchPlugin)):
     def __init__(self, display_period=5):
         super(DisplayPlugin, self).__init__()
-        self.last = time.time()
+        self.last  = time.time()
         self.start = time.time()
         self.display_period = display_period
 
@@ -93,7 +93,7 @@ class LogDisplayPlugin(DisplayPlugin):
         if not t:
             t = time.time()
         count = self.driver.results_query().count()
-        best = self.driver.results_query(objective_ordered=True).first()
+        best = self.driver.results_query(objective_ordered = True).first()
         if best is None:
             log.warning("no results yet")
             return
@@ -105,33 +105,51 @@ class LogDisplayPlugin(DisplayPlugin):
                          requestor,
                          )
 
-
 class FileDisplayPlugin(SearchPlugin):
     def __init__(self, out, details, *args, **kwargs):
         super(FileDisplayPlugin, self).__init__(*args, **kwargs)
         self.last_best = float('inf')
         self.start_date = datetime.now()
         if out:
-            self.out = open(out, "w")
+            self.out = open(out, "a")
+            print("Start Logging:" + str(self.start_date), file=self.out)
+            self.out.flush()
         else:
             self.out = None
         if out == details:
             self.details = self.out
             self.out = None
         elif details:
-            self.details = open(details, "w")
+            self.details = open(details, "a")
+            print("Start Logging:" + str(self.start_date), file=self.details)
+            self.details.flush()
         else:
             self.details = None
 
     def on_result(self, result):
-        if self.out and result.time < self.last_best:
-            self.last_best = result.time
-            print((result.collection_date - self.start_date).total_seconds(), \
-                  result.time, file=self.out)
+        out_str = "tuning time: {:f}, ".format(
+            (result.collection_date - self.start_date).total_seconds())
+
+        for field in ["time", "cycle", "rate"]:
+            if getattr(result, field) is not None:
+                out_str += "{:s}: {:s}, ".format(str(field),
+                                                 str(getattr(result, field)))
+
+        if result.rate is not None:
+            measurement = -1 * result.rate
+
+        elif result.cycle is not None:
+            measurement = result.cycle
+        else:
+            measurement = result.time
+
+        if self.out and measurement < self.last_best:
+            self.last_best = measurement
+            print(out_str, file=self.out)
             self.out.flush()
+
         if self.details:
-            print((result.collection_date - self.start_date).total_seconds(), \
-                  result.time, file=self.details)
+            print(out_str, file=self.details)
             self.details.flush()
 
 
@@ -148,7 +166,7 @@ def get_enabled(args):
 def cfg_repr(cfg):
     try:
         s = repr(cfg.data)
-        if len(s) < 100:
+        if len(s) < 1000:
             return s
     except:
         pass

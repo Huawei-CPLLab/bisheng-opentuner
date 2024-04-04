@@ -10,6 +10,7 @@ import sys
 from builtins import map
 from builtins import next
 from builtins import str
+from collections import deque
 from datetime import datetime
 from importlib import import_module
 
@@ -176,7 +177,92 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
         return t
 
 
-class PureRandom(SearchTechnique):
+class ResumableSearchTechniqueBase(SearchTechniqueBase):
+    """
+    An abstract search technique that can be saved/resumed to/from disk,
+    with minimal interface.
+    """
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove driver, objective, manipulator because they contains
+        # database related objects which are illegal to pickle.
+        if "driver" in state:
+            del state["driver"]
+        if "objective" in state:
+            del state["objective"]
+        if "manipulator" in state:
+            del state["manipulator"]
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Add the missing fields back since they don't exist in the pickle.
+        self.driver = None
+        self.objective = None
+        self.manipulator = None
+
+
+class ResumableSearchTechnique(ResumableSearchTechniqueBase, SearchTechnique):
+
+    def __init__(self, *pargs, **kwargs):
+        super(ResumableSearchTechnique, self).__init__(*pargs, **kwargs)
+        self.is_init = False
+        self.done = False
+        self.pending_cfgs = deque()
+        self.callbacks = deque()
+
+    def test_next(self, cfg):
+        """
+        Add a configuration to test next.
+        """
+        if cfg:
+            self.pending_cfgs.append(cfg.data)
+
+    def initial_step(self):
+        """
+        Initial step and the entry point for running the technique.
+        """
+        pass
+
+    def add_callback(self, callback):
+        self.callbacks.append(callback)
+
+    def run_next_callback(self):
+        """
+        Run the next available callback.
+        Returns False if no more callbacks to run and True otherwise.
+        """
+        if (len(self.callbacks) == 0):
+            return False
+        else:
+            callback = self.callbacks.popleft()
+            callback()
+            return True
+
+    def get_next_cfg(self):
+        cfg = self.pending_cfgs.popleft()
+        return cfg
+
+    def desired_configuration(self):
+        if self.is_init == False:
+            self.initial_step()
+            self.is_init = True
+            return self.get_next_cfg()
+        else:
+            while (len(self.pending_cfgs) == 0):
+                # Run the next available callback. We are done if there is none.
+                if (not self.run_next_callback()):
+                    self.done = True
+                    return None
+            cfg = self.get_next_cfg()
+            return cfg
+
+    def is_ready(self):
+        return not self.done
+
+
+class PureRandom(SearchTechnique, ResumableSearchTechniqueBase):
     """
     request configurations completely randomly
     """
@@ -357,7 +443,7 @@ def get_enabled(args):
 
     if not args.technique:
         # no techniques specified, default technique
-        args.technique = ['AUCBanditMetaTechniqueA']
+        args.technique = ['AUCBanditMetaTechniqueResumable']
 
     for unknown in set(args.technique) - set(map(lambda x: x.name, techniques)):
         log.error('unknown technique %s', unknown)

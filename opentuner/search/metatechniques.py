@@ -7,12 +7,12 @@ from collections import deque, defaultdict
 
 from past.builtins import cmp
 
-from .technique import SearchTechniqueBase
+from .technique import ResumableSearchTechniqueBase
 
 log = logging.getLogger(__name__)
 
 
-class MetaSearchTechnique(SearchTechniqueBase):
+class MetaSearchTechnique(ResumableSearchTechniqueBase):
     """
     a technique made up of a collection of other techniques
     """
@@ -50,7 +50,10 @@ class MetaSearchTechnique(SearchTechniqueBase):
                 self.driver.register_result_callback(dr,
                                                      lambda result: self.on_technique_result(technique, result))
                 if self.log_freq:
-                    self.logging_use_counters[technique.name] += 1
+                    if not technique.name in self.logging_use_counters:
+                        self.logging_use_counters[technique.name] = 1
+                    else:
+                        self.logging_use_counters[technique.name] += 1
                     self.debug_log()
                 self.request_count += 1
                 return dr

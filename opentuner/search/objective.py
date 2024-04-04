@@ -52,7 +52,8 @@ class SearchObjective(with_metaclass(abc.ABCMeta, object)):
         self.driver = driver
 
     def result_order_by(self, q):
-        return q.order_by(*self.result_order_by_terms())
+        return q.order_by(*self.result_order_by_terms()) \
+                .filter(*self.result_order_by_terms())
 
     def compare(self, a, b):
         """cmp() compatible compare"""
@@ -118,6 +119,8 @@ class SearchObjective(with_metaclass(abc.ABCMeta, object)):
         b3 = Result()
         a3.time = _project(a1.time, a2.time, factor)
         a3.accuracy = _project(a1.accuracy, a2.accuracy, factor)
+        a3.cycle = _project(a1.cycle, a2.cycle, factor)
+        a3.rate = _project(a1.rate, a2.rate, factor)
         a3.energy = _project(a1.energy, a2.energy, factor)
         a3.confidence = _project(a1.confidence, a2.confidence, factor)
         return self.result_compare(a3, b3)
@@ -127,7 +130,8 @@ class SearchObjective(with_metaclass(abc.ABCMeta, object)):
         produce a string version of a resultsdb.models.Result()
         """
         rv = []
-        for k in ('time', 'accuracy', 'energy', 'size', 'confidence'):
+        for k in ('time', 'accuracy', 'cycle', 'rate',
+                  'energy', 'size', 'confidence'):
             v = getattr(result, k)
             if v is not None:
                 rv.append('%s=%.4f' % (k, float(v)))
@@ -180,6 +184,26 @@ class MinimizeTime(SearchObjective):
         return old_div(result1.time, result2.time)
 
 
+class MinimizeCycle(SearchObjective):
+    """
+    minimize Result().cycle
+    """
+
+    def result_order_by_terms(self):
+        """return database columns required to order by the objective"""
+        return [Result.cycle]
+
+    def result_compare(self, result1, result2):
+        """cmp() compatible comparison of resultsdb.models.Result"""
+        return cmp(result1.cycle, result2.cycle)
+
+    def result_relative(self, result1, result2):
+        """return None, or a relative goodness of resultsdb.models.Result"""
+        if result2.cycle == 0:
+            return int('inf') * result1.cycle
+        return result1.cycle / result2.cycle
+
+
 class MaximizeAccuracy(SearchObjective):
     """
     maximize Result().accuracy
@@ -210,6 +234,29 @@ class MaximizeAccuracy(SearchObjective):
 
     def stats_raw_score(self, result):
         return result.accuracy
+
+
+class MaximizeRate(SearchObjective):
+    """
+    maximizeRate Result().rate
+    """
+
+    def result_order_by_terms(self):
+        """return database columns required to order by the objective"""
+        return [-Result.rate]
+
+    def result_compare(self, result1, result2):
+        """cmp() compatible comparison of resultsdb.models.Result"""
+        # note opposite order
+        return cmp(result2.rate, result1.rate)
+
+    def result_relative(self, result1, result2):
+        """return None, or a relative goodness of resultsdb.models.Result"""
+        # note opposite order
+
+        if result1.rate == 0:
+            return int('inf') * result2.rate
+        return result2.rate / result1.rate
 
 
 class MaximizeAccuracyMinimizeSize(MaximizeAccuracy):

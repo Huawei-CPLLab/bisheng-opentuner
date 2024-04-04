@@ -443,6 +443,21 @@ class Parameter(with_metaclass(abc.ABCMeta, object)):
                 break
 
 
+class IncrementableParameter(Parameter):
+    """
+    Abstract interface for parameters if there is a way to logically
+    increment the paramater's node value
+    """
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, name):
+        super(IncrementableParameter, self).__init__(name)
+
+    def next_value(self, config):
+        """pass through for abstract definition"""
+        pass
+
+
 class PrimitiveParameter(with_metaclass(abc.ABCMeta, Parameter)):
     """
     An abstract interface implemented by parameters that represent a single
@@ -649,7 +664,7 @@ class NumericParameter(PrimitiveParameter):
             return self.max_value - self.min_value + 1  # inclusive range
 
 
-class IntegerParameter(NumericParameter):
+class IntegerParameter(NumericParameter, IncrementableParameter):
     """
     A parameter representing an integer value in a legal range
     """
@@ -700,6 +715,15 @@ class IntegerParameter(NumericParameter):
         p = int(min(vmax, max(round(p), vmin)))
         self.set_value(cfg, p)
         return v
+
+    def next_value(self, config):
+        """ get next value but wraps to the vmin when it hits vmax """
+        vmin, vmax = self.legal_range(config)
+        val = self._get(config)
+        if (val + 1 <= vmax):
+            return val + 1
+        else:
+            return vmin
 
 
 class FloatParameter(NumericParameter):
@@ -837,6 +861,13 @@ class PowerOfTwoParameter(ScaledNumericParameter, IntegerParameter):
     def search_space_size(self):
         return int(math.log(self.max_value, 2) - math.log(self.min_value, 2)) + 1
 
+    def next_value(self, config):
+        val = self._get(config)
+        if (val + 1 <= self.max_value):
+            return val + 1
+        else:
+            return self.min_value
+
 
 ##################
 
@@ -929,7 +960,7 @@ class ComplexParameter(Parameter):
         return
 
 
-class BooleanParameter(ComplexParameter):
+class BooleanParameter(ComplexParameter, IncrementableParameter):
     def manipulators(self, config):
         return [self.op1_flip]
 
@@ -997,8 +1028,11 @@ class BooleanParameter(ComplexParameter):
         self.set_value(cfg, p)
         return v
 
+    def next_value(self, config):
+        return not self._get(config)
 
-class SwitchParameter(ComplexParameter):
+
+class SwitchParameter(ComplexParameter, IncrementableParameter):
     """
     A parameter representing an unordered collection of options with no implied
     correlation between the choices. The choices are range(option_count)
@@ -1022,8 +1056,15 @@ class SwitchParameter(ComplexParameter):
     def search_space_size(self):
         return max(1, self.option_count)
 
+    def next_value(self, config):
+        val = self._get(config)
+        if val < self.option_count:
+            return val + 1
+        else:
+            return 0
 
-class EnumParameter(ComplexParameter):
+
+class EnumParameter(ComplexParameter, IncrementableParameter):
     """
     same as a SwitchParameter but choices are taken from an arbitrarily typed list
     """
@@ -1045,6 +1086,14 @@ class EnumParameter(ComplexParameter):
 
     def search_space_size(self):
         return max(1, len(self.options))
+
+    def next_value(self, config):
+        """
+        get next value but wraps back to first option if current is the last
+        """
+        option = self._get(config)
+        option = self.options[(self.options.index(option) + 1) % len(self.options)]
+        return option
 
 
 class PermutationParameter(ComplexParameter):
@@ -1357,6 +1406,32 @@ class PermutationParameter(ComplexParameter):
 
     def search_space_size(self):
         return math.factorial(max(1, len(self._items)))
+
+
+class SelectionParameter(ComplexParameter):
+    """
+    A parameter representing a selection (and ordering) as a list of items
+    The value of this parameter is a subset of the given items in an
+    arbitrary order
+    """
+
+    def __init__(self, name, choices,
+                 order_class=PermutationParameter,
+                 size_class=IntegerParameter):
+        super(SelectionParameter, self).__init__(name)
+        self.choices = choices
+        self.order_param = order_class('{0}/order'.format(name), choices)
+        self.size_param = size_class('{0}/size'.format(name), 0, len(choices))
+
+    def sub_parameters(self):
+        return [self.order_param, self.size_param]
+
+    def seed_value(self):
+        return {'order': self.order_param.seed_value(),
+                'size': self.size_param.seed_value()}
+
+    def op1_randomize(self, config):
+        random.choice(self.sub_parameters()).op1_randomize(config)
 
 
 class ScheduleParameter(PermutationParameter):
