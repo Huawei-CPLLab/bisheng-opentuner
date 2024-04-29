@@ -221,11 +221,28 @@ class MeasurementDriver(DriverBase):
 
 
 def _cputype():
-    try:
-        return re.search(r"model name\s*:\s*([^\n]*)",
-                         open("/proc/cpuinfo").read()).group(1)
-    except:
-        pass
+    if os.name is "posix":
+        try:
+            return re.search(
+                r"model name\s*:\s*([^\n]*)", open("/proc/cpuinfo").read()
+            ).group(1)
+        except:
+            pass
+        try:
+            # AArch64 machines may not have 'model name' attribute in
+            # /proc/cpuinfo file. Using lscpu command to extract 'model name'.
+            import subprocess
+
+            return re.search(
+                r"Model name\s*:\s*([^\n]*)",
+                subprocess.Popen(["lscpu"], stdout=subprocess.PIPE)
+                .communicate()[0]
+                .decode(),
+            ).group(1)
+        except:
+            log.warning("failed to get cpu type")
+            return "unknown"
+
     try:
         # for OS X
         import subprocess
