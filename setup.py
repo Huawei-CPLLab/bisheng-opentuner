@@ -46,7 +46,7 @@ required = [l.strip() for l in required
 
 setup(
     name='bisheng-opentuner',
-    version='0.8.8',
+    version='0.8.8.1',
     url='https://github.com/Huawei-CPLLab/bisheng-opentuner',
     license='MIT',
     author='Jason Ansel',
